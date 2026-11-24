@@ -1,0 +1,1780 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>我的排序器</title>
+<style>
+  :root{
+    --bg1:#eef2ff; --bg2:#fdf2f8; --ink:#1f2430; --sub:#7b8494;
+    --card:#ffffff; --line:#eceff5; --accent:#5b6ef5; --accent2:#ec4899;
+    --shadow:0 6px 22px rgba(60,70,120,.08);
+    --shadow-drag:0 18px 46px rgba(60,70,120,.28);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",Segoe UI,Roboto,sans-serif;
+    color:var(--ink);background:linear-gradient(135deg,var(--bg1),var(--bg2));
+    min-height:100vh;padding:22px 16px 112px;
+  }
+  .wrap{max-width:680px;margin:0 auto;}
+  header{text-align:center;margin-bottom:14px;}
+  h1{font-size:24px;margin:0 0 6px;letter-spacing:.5px;
+     background:linear-gradient(90deg,var(--accent),var(--accent2));
+     -webkit-background-clip:text;background-clip:text;color:transparent;}
+  .desc{color:var(--sub);font-size:12px;line-height:1.7;margin:0;}
+
+  .library{
+    display:flex;align-items:center;gap:8px;background:#fff;padding:8px 10px;
+    border-radius:14px;box-shadow:var(--shadow);margin:14px 0 12px;
+  }
+  .library .lib-label{font-size:11px;color:var(--sub);flex:0 0 auto;}
+  .library select{
+    flex:1;min-width:0;font-family:inherit;font-size:14px;font-weight:700;color:var(--ink);
+    border:1px solid var(--line);border-radius:9px;padding:8px 10px;background:#f9fafc;outline:none;
+  }
+  .lib-btn{
+    flex:0 0 auto;width:34px;height:34px;border:1px solid var(--line);border-radius:9px;
+    background:#f9fafc;color:var(--accent);font-size:18px;font-weight:700;line-height:1;cursor:pointer;
+  }
+  .lib-btn:hover{background:#eef2ff;}
+  .lib-btn.danger{color:#e5484d;}
+  .lib-btn.danger:hover{background:#fff1f0;}
+
+  .tabs{display:flex;gap:8px;background:#fff;padding:6px;border-radius:18px;
+        box-shadow:0 8px 28px rgba(60,70,120,.22);margin:0 0 12px;
+        position:fixed;left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom,0px));
+        width:calc(100% - 24px);max-width:656px;z-index:900;}
+  .tab{flex:1;text-align:center;padding:14px 6px;border-radius:13px;font-size:16px;font-weight:700;
+       color:var(--sub);cursor:pointer;transition:all .15s;}
+  .tab.active{background:linear-gradient(90deg,var(--accent),#7d8bff);color:#fff;
+              box-shadow:0 6px 14px rgba(91,110,245,.3);}
+
+  .toolbar{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin:0 0 10px;}
+  .toolbar button{
+    font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;
+    border:1px solid var(--line);background:var(--card);color:var(--ink);
+    padding:5px 9px;border-radius:9px;box-shadow:var(--shadow);
+    transition:transform .12s,box-shadow .12s;
+  }
+  .toolbar button.icon-btn{font-size:16px;padding:3px 10px;line-height:1;}
+  .toolbar button:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(60,70,120,.16);}
+  .toolbar button:active{transform:translateY(0);}
+  .toolbar button:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:var(--shadow);}
+  .toolbar button.primary{background:linear-gradient(90deg,var(--accent),#7d8bff);color:#fff;border-color:transparent;}
+  .toolbar button.mode-on{background:linear-gradient(90deg,#f59e0b,#fbbf24);color:#fff;border-color:transparent;}
+  .toolbar button.add{background:linear-gradient(90deg,#10b981,#34d399);color:#fff;border-color:transparent;}
+  .toolbar button.danger-btn{background:#fff1f0;color:#e5484d;border-color:#ffd7d7;}
+  /* 更多菜单 */
+  .more-wrap{position:relative;}
+  .toolbar button.more-btn{background:#fff;color:var(--sub);border-color:var(--line);}
+  .toolbar button.more-btn.open{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .more-mask{position:fixed;inset:0;background:rgba(20,25,40,.4);display:none;z-index:3000;}
+  .more-mask.show{display:block;}
+  .more-panel{
+    display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:max-content;max-width:calc(100vw - 40px);z-index:3001;
+    background:#fff;border:1px solid var(--line);border-radius:16px;
+    box-shadow:0 20px 60px rgba(60,70,120,.32);padding:14px;
+    grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;
+  }
+  .more-panel.show{display:grid;}
+  .more-panel button{
+    font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;
+    padding:11px 12px;border:1px solid var(--line);border-radius:10px;
+    background:#f9fafc;color:var(--ink);text-align:center;
+  }
+  .more-panel button:active{background:#eef2ff;}
+  .more-panel button.danger-btn{background:#fff1f0;color:#e5484d;border-color:#ffd7d7;}
+  .hint{text-align:center;color:var(--sub);font-size:11px;margin:0 0 12px;min-height:15px;line-height:1.5;
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .hint b{color:var(--accent);}
+  .saved{text-align:center;color:#1a9c6b;font-size:11px;height:14px;margin-top:4px;opacity:0;transition:opacity .3s;}
+  .saved.show{opacity:1;}
+
+  .item{
+    position:relative;display:flex;align-items:center;flex-wrap:wrap;gap:10px;
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:12px;box-shadow:var(--shadow);
+    user-select:none;transition:box-shadow .15s,transform .15s,border-color .15s;
+  }
+  .item:hover{border-color:#dfe4f5;}
+  .item.dragging{box-shadow:var(--shadow-drag);transform:scale(1.02) rotate(-.4deg);border-color:var(--accent);}
+  .placeholder{border:2px dashed var(--accent);border-radius:14px;background:rgba(91,110,245,.06);}
+  .rank{
+    flex:0 0 auto;width:30px;height:30px;border-radius:9px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:14px;font-weight:800;color:var(--sub);background:#f2f4fa;
+  }
+  .item.top1 .rank{background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#fff;}
+  .item.top2 .rank{background:linear-gradient(135deg,#94a3b8,#cbd5e1);color:#fff;}
+  .item.top3 .rank{background:linear-gradient(135deg,#d97706,#f59e0b);color:#fff;}
+  .name{flex:1;font-size:15px;font-weight:600;line-height:1.35;min-width:0;word-break:break-word;}
+  .tag{flex:0 0 auto;font-size:11px;font-weight:700;padding:4px 9px;border-radius:20px;white-space:nowrap;cursor:pointer;}
+  .c-ongoing{background:#fff1f0;color:#e5484d;}
+  .c-main{background:#f3efff;color:#7c5cf0;}
+  .c-core{background:#eaf2ff;color:#3b7ddd;}
+  .c-channel{background:#e9f8f1;color:#1a9c6b;}
+  .c-experience{background:#fff7e6;color:#d97706;}
+  .c-material{background:#f1f3f6;color:#7b8494;}
+  .c-custom{background:#eef0ff;color:#5560c9;}
+  body.editing .name,body.editing .tag{cursor:text;border-bottom:1px dashed #cbd5e1;}
+  body.editing .tag{border-radius:20px 20px 6px 6px;}
+  .edit-input{
+    font-family:inherit;font-size:15px;font-weight:600;flex:1;min-width:0;
+    border:1.5px solid var(--accent);border-radius:8px;padding:5px 8px;outline:none;background:#fff;
+  }
+  .edit-input.cat-input{flex:0 0 112px;font-size:12px;font-weight:700;padding:4px 6px;}
+
+  .grip{
+    flex:0 0 auto;min-width:44px;height:44px;display:flex;align-items:center;justify-content:center;
+    border-radius:10px;background:#f2f4fb;color:#9aa4ba;font-size:17px;
+    touch-action:none;cursor:grab;transition:background .15s,color .15s;
+  }
+  .item.pressing .grip{background:var(--accent);color:#fff;}
+  .grip:active{cursor:grabbing;}
+
+  .chk{flex:0 0 auto;width:28px;height:28px;border:1.5px solid var(--line);background:#fff;
+       color:#c8cfdb;border-radius:50%;font-size:13px;font-weight:800;line-height:1;cursor:pointer;}
+  .chk:hover{border-color:#10b981;color:#10b981;}
+  .chk.on{background:#10b981;border-color:#10b981;color:#fff;}
+
+  .sel{flex:0 0 auto;width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .sel input{width:17px;height:17px;accent-color:var(--accent);cursor:pointer;margin:0;}
+  .item.selected{border-color:var(--accent);background:#f6f8ff;}
+  .item.done{opacity:.6;}
+  .item.done .name{text-decoration:line-through;color:#9aa3b2;}
+  .item.done .tag{opacity:.6;}
+
+  .item-actions{flex-basis:100%;display:none;gap:6px;padding-top:6px;border-top:1px dashed var(--line);}
+  body.editing .item-actions{display:flex !important;}
+  .item-actions button{font-family:inherit;font-size:11px;font-weight:700;padding:5px 10px;
+       border:1px solid var(--line);border-radius:7px;background:#f9fafc;color:var(--accent);cursor:pointer;}
+  .item-actions button:hover{background:#eef2ff;}
+  .item-actions .del{background:#fff1f0;color:#e5484d;}
+  .item-actions .del.confirm{background:#e5484d;color:#fff;font-size:11px;}
+
+  .edit-only{display:none !important;}
+  body.editing .edit-only{display:flex !important;}
+
+  .batchbar{display:none;align-items:center;gap:7px;flex-wrap:wrap;background:#f0f4ff;
+            border:1px solid #dbe3ff;border-radius:12px;padding:9px 11px;margin:0 0 10px;}
+  .batchbar.show{display:flex;}
+  .batchbar .bcount{font-size:12px;font-weight:700;color:var(--accent);margin-right:auto;}
+  .batchbar button{font-family:inherit;font-size:12px;font-weight:600;padding:6px 10px;
+       border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);cursor:pointer;}
+  .batchbar button.danger{background:#fff1f0;color:#e5484d;border-color:#ffd7d7;}
+
+  #list{display:flex;flex-direction:column;gap:9px;}
+  .groups{display:flex;flex-direction:column;gap:14px;}
+  .group{background:rgba(255,255,255,.55);border:1px solid var(--line);border-radius:16px;padding:10px;}
+  .group-head{display:flex;align-items:center;gap:8px;padding:2px 4px 10px;cursor:pointer;}
+  .group-head .tag{font-size:12px;padding:4px 11px;}
+  .group-count{font-size:11px;color:var(--sub);}
+  .group-fold{margin-left:auto;color:var(--sub);font-size:14px;transition:transform .2s;}
+  .group.closed .group-fold{transform:rotate(-90deg);}
+  .group-items{display:flex;flex-direction:column;gap:8px;}
+  .group.closed .group-items{display:none;}
+  .group-empty{font-size:12px;color:var(--sub);padding:8px 4px;text-align:center;}
+  .empty-state{text-align:center;padding:44px 20px;color:var(--sub);}
+  .empty-state .big{font-size:40px;opacity:.5;margin-bottom:12px;}
+  .empty-state .t{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px;}
+  .empty-state .s{font-size:12px;line-height:1.7;}
+
+  /* 抽取转盘 */
+  .wheel-wrap{display:flex;flex-direction:column;align-items:center;padding:6px 0 4px;width:100%;}
+  .wheel-stage{
+    position:relative;width:min(340px,86vw);height:min(340px,86vw);
+    display:flex;align-items:center;justify-content:center;
+  }
+  #wheelCanvas{width:100%;height:100%;border-radius:50%;box-shadow:0 12px 36px rgba(60,70,120,.22);will-change:transform;}
+  .wheel-pointer{
+    position:absolute;top:-2.5%;left:50%;transform:translateX(-50%);
+    width:0;height:0;
+    border-left:min(12px,3.8vw) solid transparent;border-right:min(12px,3.8vw) solid transparent;
+    border-top:min(26px,8vw) solid #e5484d;z-index:3;filter:drop-shadow(0 3px 3px rgba(0,0,0,.2));
+  }
+  .wheel-center{
+    position:absolute;z-index:2;width:19%;height:19%;border-radius:50%;
+    background:linear-gradient(135deg,#5b6ef5,#ec4899);color:#fff;font-weight:800;
+    font-size:clamp(14px,4.5vw,18px);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;border:3px solid #fff;
+    box-shadow:0 4px 14px rgba(60,70,120,.35);
+  }
+  .wheel-center:active{transform:scale(.94);}
+  .wheel-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;margin-top:18px;}
+  .wheel-opt{font-size:12px;color:var(--sub);display:flex;align-items:center;gap:5px;cursor:pointer;}
+  .wheel-opt input{accent-color:var(--accent);width:15px;height:15px;}
+  #soundToggle{user-select:none;padding:4px 6px;border-radius:8px;transition:background .15s;}
+  #soundToggle:hover{background:#f0f2fb;}
+  #soundToggle.off{opacity:.55;}
+  .spin-btn{
+    font-family:inherit;font-size:15px;font-weight:800;color:#fff;border:none;cursor:pointer;
+    padding:11px 30px;border-radius:24px;background:linear-gradient(90deg,var(--accent),var(--accent2));
+    box-shadow:0 8px 20px rgba(91,110,245,.35);transition:transform .12s;
+  }
+  .spin-btn:active{transform:scale(.96);}
+  .spin-btn:disabled{opacity:.5;cursor:not-allowed;}
+  .wheel-count{font-size:12px;color:var(--sub);margin:12px 0 0;text-align:center;line-height:1.6;}
+  .result-box{text-align:center;}
+  .result-label{font-size:13px;color:var(--sub);margin-bottom:8px;}
+  .result-name{font-size:26px;font-weight:800;line-height:1.35;margin-bottom:12px;word-break:break-word;}
+  .result-cat{display:inline-block;}
+
+  /* 加权按钮 */
+  .item-actions .weight-btn{color:#d97706;background:#fff7e6;}
+  .item-actions .weight-btn:hover{background:#ffedd5;}
+  .weight-badge{flex:0 0 auto;font-size:10px;font-weight:800;color:#fff;background:#d97706;
+       border-radius:6px;padding:2px 5px;line-height:1.2;}
+
+  /* 转盘分类配色图例 */
+  .wheel-catlegend{display:flex;flex-wrap:wrap;gap:6px 12px;justify-content:center;margin-top:10px;max-width:340px;}
+  .wheel-catlegend span{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--sub);}
+  .wheel-catlegend i{width:10px;height:10px;border-radius:3px;display:inline-block;}
+
+  /* 转盘开关组 */
+  .wheel-switches{display:flex;gap:8px 14px;flex-wrap:wrap;justify-content:center;margin-top:12px;}
+  .wheel-mini-btn{font-family:inherit;font-size:12px;font-weight:700;padding:7px 13px;border-radius:10px;
+       border:1px solid var(--line);background:#fff;color:var(--accent);cursor:pointer;box-shadow:var(--shadow);}
+  .wheel-mini-btn:hover{background:#eef2ff;}
+
+  /* 统计弹窗 */
+  .stat-sec{margin-bottom:18px;}
+  .stat-title{font-size:13px;font-weight:800;color:var(--ink);margin-bottom:9px;display:flex;align-items:center;gap:6px;}
+  .stat-bar-row{display:flex;align-items:center;gap:9px;margin-bottom:8px;font-size:12px;}
+  .stat-bar-label{flex:0 0 76px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .stat-bar-track{flex:1;height:11px;background:#eef1f7;border-radius:6px;overflow:hidden;}
+  .stat-bar-fill{height:100%;border-radius:6px;transition:width .5s;}
+  .stat-bar-num{flex:0 0 34px;text-align:right;font-weight:700;color:var(--ink);}
+  .progress-ring{display:flex;align-items:center;gap:18px;justify-content:center;}
+  .ring{width:104px;height:104px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative;flex:0 0 auto;}
+  .ring-inner{width:78px;height:78px;border-radius:50%;background:#fff;display:flex;flex-direction:column;
+       align-items:center;justify-content:center;}
+  .ring-pct{font-size:22px;font-weight:800;color:var(--ink);line-height:1;}
+  .ring-cap{font-size:10px;color:var(--sub);margin-top:3px;}
+  .progress-info{font-size:13px;line-height:1.9;color:var(--sub);}
+  .progress-info b{color:var(--ink);}
+
+  /* 历史列表 */
+  .hist-list{max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:4px 10px;}
+  .hist-row{display:flex;align-items:center;gap:9px;padding:9px 2px;border-bottom:1px solid var(--line);font-size:13px;}
+  .hist-row:last-child{border-bottom:none;}
+  .hist-time{font-size:11px;color:var(--sub);flex:0 0 auto;width:78px;}
+  .hist-name{flex:1;font-weight:600;min-width:0;word-break:break-word;}
+  .hist-row .tag{font-size:10px;padding:2px 8px;}
+
+  /* 推荐卡片 */
+  .rec-box{text-align:center;padding:6px 0;}
+  .rec-hint{font-size:12px;color:var(--sub);margin-bottom:12px;}
+  .rec-name{font-size:28px;font-weight:800;line-height:1.35;margin-bottom:14px;word-break:break-word;
+       background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .rec-reason{background:#f6f8ff;border:1px solid #e5eaff;border-radius:12px;padding:12px 14px;
+       font-size:13px;line-height:1.7;color:var(--ink);text-align:left;}
+
+  .legend{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:18px 0 0;}
+  .legend span{font-size:11px;color:var(--sub);}
+  .legend .tag{font-size:10px;padding:3px 8px;cursor:default;}
+  .toast{
+    position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);
+    background:#1f2430;color:#fff;padding:11px 20px;border-radius:12px;font-size:14px;
+    opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:2000;max-width:90vw;text-align:center;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  .modal{position:fixed;inset:0;background:rgba(20,25,40,.45);display:none;
+         align-items:center;justify-content:center;z-index:3000;padding:16px;}
+  .modal.show{display:flex;}
+  .modal-box{background:#fff;border-radius:18px;padding:20px;width:100%;max-width:460px;
+             box-shadow:0 24px 64px rgba(20,25,40,.3);max-height:90vh;overflow:auto;}
+  .modal-title{font-size:17px;font-weight:800;margin-bottom:6px;}
+  .modal-sub{font-size:12px;color:var(--sub);line-height:1.7;margin-bottom:12px;}
+  .modal textarea,.modal input.txt-input{
+    width:100%;font-family:inherit;font-size:14px;line-height:1.6;
+    border:1.5px solid var(--line);border-radius:10px;padding:10px;resize:vertical;outline:none;
+  }
+  .modal input.txt-input{line-height:1.4;}
+  .modal textarea{height:170px;}
+  .modal textarea:focus,.modal input.txt-input:focus{border-color:var(--accent);}
+  .modal-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;}
+  .modal-actions button{
+    flex:1;min-width:96px;font-family:inherit;font-size:13px;font-weight:700;padding:10px;
+    border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;
+  }
+  .modal-actions .go{background:linear-gradient(90deg,var(--accent),#7d8bff);color:#fff;border-color:transparent;}
+  .modal-actions .ghost{color:var(--sub);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><!--pnid:Ahl2EZmIqpZ6XjHLwR9rCC-->我的排序器</h1>
+    <p class="desc"><!--pnid:dCMbXYSsJy25Qing4HNBzi-->顺序排列 · 按分类排列 · 自由编辑 · 多清单 · 自动保存</p>
+  </header>
+
+  <div class="library">
+    <span class="lib-label"><!--pnid:EUICrC9KW5KiSidDdaJzHH-->清单</span>
+    <select aria-label="选择清单" id="listSelect"></select>
+    <button class="lib-btn" id="newListBtn" title="新建清单"><!--pnid:N8GhLxYGgrNiScoQsqUUSA-->＋</button>
+    <button class="lib-btn" id="renameListBtn" title="重命名当前清单"><!--pnid:xd6pj4AcMJoV4yXexQPpRS-->✎</button>
+    <button class="lib-btn danger" id="delListBtn" title="删除当前清单"><!--pnid:Tf9C1GAxDkec8bXygxJi3A-->×</button>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-view="list"><!--pnid:hduRDsCCcbrSLpjF4czDi9-->☰ 顺序排列</div>
+    <div class="tab" data-view="group"><!--pnid:ZvwcJCikxC4QteNqhIxzvd-->▦ 按分类排列</div>
+    <div class="tab" data-view="wheel"><!--pnid:s6ehvbgSiuSAEB5r8SJ6xp-->🎡 抽取转盘</div>
+  </div>
+
+  <div class="toolbar">
+    <button class="primary" id="editBtn"><!--pnid:otnp4oa6dSPsbqugXNAkef-->✎ 编辑模式</button>
+    <button class="add edit-only" id="addBtn"><!--pnid:xEbFhTlmV3wyksPxBxUkrH-->＋ 添加项目</button>
+    <button class="primary" id="todayBtn"><!--pnid:pDSFKLIkTeOQ0C12zEufwf-->💡 今天做什么</button>
+    <button class="icon-btn" disabled id="undoBtn" title="撤销"><!--pnid:WLdj2d4XHNJGEv3OKDafTh-->↶</button>
+    <button class="icon-btn" disabled id="redoBtn" title="重做"><!--pnid:1eLLLos6xItYclZmVnCe3e-->↷</button>
+    <div class="more-wrap">
+      <button class="more-btn" id="moreBtn"><!--pnid:E7roRWKnp4bOJ5vbcmgoOK-->⋯ 更多</button>
+      <div class="more-mask" id="moreMask"></div>
+      <div class="more-panel" id="morePanel">
+        <button id="importTextBtn"><!--pnid:pl7ZJr6LUZqYCTAbi6gcTC-->粘贴添加</button>
+        <button id="copyAllBtn"><!--pnid:9B52QeTkvcD0E4xZCOFyRI-->复制（含分类）</button>
+        <button id="copyOrderBtn"><!--pnid:CoSFkAQUfVYcdXBhzPdlRe-->复制（纯顺序）</button>
+        <button id="sortNameBtn"><!--pnid:K3ico6PX2GuuHPyseoidHL-->按名称排</button>
+        <button id="sortCatBtn"><!--pnid:5jB9F0ylNaMIYtovkcy9mS-->按分类排</button>
+        <button id="statsBtn"><!--pnid:11KN2co7MzwGtcUcKLS1IF-->📊 统计</button>
+        <button class="danger-btn" id="clearBtn"><!--pnid:QMGUAwqyBJIRUU9tc1JQnT-->清空清单</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="batchbar" id="batchbar">
+    <span class="bcount" id="bcount"><!--pnid:VNPN510QpFXtyv7DaFFSE3-->已选 0 项</span>
+    <button id="batchCatBtn"><!--pnid:hcLEqyey0L5Tdh9rG3EBxQ-->批量改分类</button>
+    <button class="danger" id="batchDelBtn"><!--pnid:mKHpSpfiy76tzBPejpVz13-->批量删除</button>
+    <button id="batchClearBtn"><!--pnid:0ABRWnSnWv8kB2jps8BALR-->取消勾选</button>
+  </div>
+
+  <p class="hint" id="hint"></p>
+  <div class="saved" id="saved"><!--pnid:YkP5YalK3snnERkNzaMmlT-->✓ 已保存</div>
+
+  <div id="view-list"><div id="list"></div></div>
+  <div id="view-group" style="display:none"><div class="groups" id="groups"></div></div>
+  <div id="view-wheel" style="display:none">
+    <div class="wheel-wrap">
+      <div class="wheel-stage">
+        <canvas height="620" id="wheelCanvas" width="620"></canvas>
+        <div class="wheel-pointer"></div>
+        <div class="wheel-center" id="wheelCenter" title="点我抽取"><!--pnid:PIho5cUoYhXdzvvUHNO2xc-->抽</div>
+      </div>
+      <div class="wheel-controls">
+        <button class="spin-btn" id="spinBtn"><!--pnid:l5A8TJs9CnCNTecrB7Mq7Y-->开始抽奖</button>
+        <button class="wheel-mini-btn" id="shuffleBtn" title="只打乱转盘扇区，不影响清单排序"><!--pnid:Eik6wWygNzZ7t9SyuWsIy8-->🎲 打乱扇区</button>
+      </div>
+      <div class="wheel-switches">
+        <label class="wheel-opt"><input id="wheelSkipDone" type="checkbox"><!--pnid:MHQiKvmbxTfBBprq8grm2X--> 跳过已完成</label>
+        <label class="wheel-opt" title="权重越高越容易被抽中"><input id="wheelWeighted" type="checkbox"><!--pnid:m5vbDHha4iPbVubjxug8L7--> 启用权重</label>
+        <label class="wheel-opt" title="优先抽取最近抽得少的分类"><input id="wheelBalance" type="checkbox"><!--pnid:Qq674JIbSiBP1OnuWwKtME--> 分类平衡</label>
+        <label class="wheel-opt" id="soundToggle" title="点击开关音效与震动"><span id="soundIcon"><!--pnid:8VRrTplz4DD7nxrGss6xLY-->🔊</span><!--pnid:ED642M5lh4vBkfQJgnB1xi--> 音效/震动</label>
+      </div>
+      <p class="wheel-count" id="wheelCount"></p>
+      <div class="wheel-catlegend" id="wheelCatLegend"></div>
+      <button class="wheel-mini-btn" id="wheelHistoryBtn" style="margin-top:12px"><!--pnid:FsCIEX5D0P8gaRPpBPEuCi-->📜 抽奖记录</button>
+    </div>
+  </div>
+
+  <div class="legend" id="legend"></div>
+</div>
+
+<div class="modal" id="importModal">
+  <div class="modal-box">
+    <div class="modal-title"><!--pnid:zLAyBL7XTJ5S1bqGRrAoKh-->从文本导入</div>
+    <div class="modal-sub"><!--pnid:GLNmnILc96tCkxZtTWLpKM-->每行一项。支持「名称」或「1. 名称　[分类]」格式，分类可省略（默认：未分类）。导入后可选择追加或替换当前清单。</div>
+    <textarea id="importText" placeholder="钢琴　[进行中]&#10;逻辑　[内核补给]&#10;写一首歌"></textarea>
+    <div class="modal-actions">
+      <button class="go" id="importAppendBtn"><!--pnid:mZ5WW92UuADlqsPwru8NRE-->追加到清单</button>
+      <button id="importReplaceBtn"><!--pnid:AJMuZfglslJtKyeQo7if05-->替换清单</button>
+      <button class="ghost" id="importCancelBtn"><!--pnid:cLVNSjWmiJKxwLlqAMDPuR-->取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="catModal">
+  <div class="modal-box">
+    <div class="modal-title"><!--pnid:m152aOhwPBAwqX54RpjLTP-->批量改分类</div>
+    <div class="modal-sub"><!--pnid:VqYTtfsVBQ3lbs1KYSJNL5-->把选中的 <b id="catModalCount"><!--pnid:siuJw4jcBSFZEDG95T6HOX-->0</b><!--pnid:T5fT80ZXJJtytgPGfd1fhs--> 项统一改为下面的分类：</div>
+    <input class="txt-input" id="batchCatInput" list="catPresets" placeholder="输入或选择分类名">
+    <div class="modal-actions">
+      <button class="go" id="batchCatConfirm"><!--pnid:NUgg1veFcvZgjtFgkKcPrL-->确定</button>
+      <button class="ghost" id="batchCatCancel"><!--pnid:vFeJXo78hlTVIGEY2eIcQo-->取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="clearModal">
+  <div class="modal-box">
+    <div class="modal-title"><!--pnid:Nb2rl3tcdeC1Qkit5uyzl2-->清空当前清单？</div>
+    <div class="modal-sub"><!--pnid:jCF9KYflEEIQv1G1xOxSs4-->这会删除「<b id="clearListName"><!--pnid:Fv41FnRhhKoxDVcllwvoQ6-->当前清单</b><!--pnid:MhVgfyu7Mw12k4WSFFyuXR-->」中的<b><!--pnid:zvf2Q0z4c6SSGCsRGMxpfo-->全部项目</b><!--pnid:NudmOV4m7Yq5KhVx0E0PPZ-->，其他清单不受影响。<br><!--pnid:TTjEM25IXFXDnCRtsCd44b-->清空后可用 ↶ 撤销恢复。</div>
+    <div class="modal-actions">
+      <button class="ghost" id="clearCancelBtn"><!--pnid:Z4hlTbcZT9EpQ8qtdFMZQz-->取消</button>
+      <button id="clearConfirmBtn" style="background:#e5484d; color:#fff; border-color:transparent"><!--pnid:GTfyAEJl1BjTVx4xASXI3s-->确认清空清单</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="confirmModal">
+  <div class="modal-box">
+    <div class="modal-title" id="confirmTitle"><!--pnid:edTbTnCG77p2AEdGciYzB1-->确认</div>
+    <div class="modal-sub" id="confirmSub"></div>
+    <div class="modal-actions">
+      <button class="ghost" id="confirmCancelBtn"><!--pnid:dblKvZZhlBbTyu6c80zw9O-->取消</button>
+      <button class="go" id="confirmOkBtn"><!--pnid:0ZE5aDMf2obPnERcFDSXSo-->确定</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="promptModal">
+  <div class="modal-box">
+    <div class="modal-title" id="promptTitle"><!--pnid:TyP6rqnhPnmuMaVnBGrU3w-->输入</div>
+    <div class="modal-sub" id="promptSub"></div>
+    <input class="txt-input" id="promptInput" placeholder>
+    <div class="modal-actions">
+      <button class="ghost" id="promptCancelBtn"><!--pnid:csj6mdrdo2TaBwsyoQmeMs-->取消</button>
+      <button class="go" id="promptOkBtn"><!--pnid:997ji4sQKjqiySiBDTEM3A-->确定</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="resultModal">
+  <div class="modal-box result-box">
+    <div class="modal-title"><!--pnid:FQ3lrOUfVcut8psVetLtug-->🎉 抽中了</div>
+    <div class="result-name" id="resultName"></div>
+    <div><span class="tag result-cat" id="resultCat"></span></div>
+    <div class="modal-actions">
+      <button class="go" id="resultAgainBtn"><!--pnid:cFlI493eTBOhtvQmgE8Keg-->再抽一次</button>
+      <button class="ghost" id="resultCloseBtn"><!--pnid:YcNijT6SPy6vh06Tjulkua-->关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="historyModal">
+  <div class="modal-box">
+    <div class="modal-title"><!--pnid:9jl1MEbAQhPqSR7vFGoGif-->📜 抽奖记录</div>
+    <div class="modal-sub" id="histSub"><!--pnid:krRlZFANvSMkgyFzKfsTiF-->最近抽取记录</div>
+    <div class="hist-list" id="histList"></div>
+    <div class="modal-actions">
+      <button class="danger-btn" id="histClearBtn" style="background:#fff1f0; color:#e5484d; border-color:#ffd7d7"><!--pnid:nU5HR47HYBwR1mOxwenOgU-->清空历史</button>
+      <button class="ghost" id="histCloseBtn"><!--pnid:O1qNywAiIFnfYaDQjWXR2I-->关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="statsModal">
+  <div class="modal-box">
+    <div class="modal-title"><!--pnid:gEiSIYR2lCXWfFWRKz9ope-->📊 数据统计</div>
+    <div class="modal-sub" id="statsSub"><!--pnid:jDukdJxAcNuD07TIVstbcb-->当前清单的分类分布与完成情况</div>
+    <div class="stat-sec">
+      <div class="stat-title"><!--pnid:YvsoNKGR50tNR2XYAOJVvn-->✅ 完成进度</div>
+      <div class="progress-ring">
+        <div class="ring" id="progRing"><div class="ring-inner"><div class="ring-pct" id="progPct"><!--pnid:u1CR9C11fd42Bp3ijqQVSO-->0%</div><div class="ring-cap"><!--pnid:Dv1JK2sAyb0q5u66Zll7g0-->已完成</div></div></div>
+        <div class="progress-info" id="progInfo"></div>
+      </div>
+    </div>
+    <div class="stat-sec">
+      <div class="stat-title"><!--pnid:wE2whwXm89xMQmXjffKf5W-->🏷 分类分布</div>
+      <div id="catStats"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="ghost" id="statsCloseBtn"><!--pnid:Mk46pZ8I5zT5xexcIhOWnC-->关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="todayModal">
+  <div class="modal-box result-box">
+    <div class="modal-title"><!--pnid:a7WdtFR5VC1hjOwNn0z8Kd-->💡 今天做什么</div>
+    <div class="rec-box">
+      <div class="rec-hint" id="recHint"><!--pnid:BPVl9OfwvIY0GrjzmWBlII-->按优先级、完成情况为你挑了一项</div>
+      <div class="rec-name" id="recName"></div>
+      <div style="margin-bottom:12px"><span class="tag" id="recCat"></span></div>
+      <div class="rec-reason" id="recReason"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="go" id="recAgainBtn"><!--pnid:gSoz9WBVw8ONkZ32oB4ppk-->换一个</button>
+      <button class="ghost" id="recCloseBtn"><!--pnid:dt9sdDl8fcAZGcIQMEp1yS-->关闭</button>
+    </div>
+  </div>
+</div>
+
+<datalist id="catPresets"></datalist>
+<div class="toast" id="toast"></div>
+
+<script>
+  const KEY = "interest-list-v2";
+  const LIB_KEY = "sorter-library-v1";
+  const HISTORY_KEY = "interest-history-v1";
+  const CATS_HISTORY_KEY = "interest-cats-history-v1";
+  const DRAW_HISTORY_KEY = "sorter-draw-history-v1";
+  const WHEEL_OPTS_KEY = "sorter-wheel-opts-v1";
+  const PRESET_CATS = ["进行中","表达主线","内核补给","表达通道","体验型","素材库"];
+  const CAT_STYLE = {
+    "进行中":"c-ongoing","表达主线":"c-main","内核补给":"c-core",
+    "表达通道":"c-channel","体验型":"c-experience","素材库":"c-material"
+  };
+  // 分类 → 转盘/统计配色（预设固定，自定义按名称哈希取稳定色）
+  const CAT_COLOR = {
+    "进行中":"#e5484d","表达主线":"#7c5cf0","内核补给":"#3b7ddd",
+    "表达通道":"#10b981","体验型":"#f59e0b","素材库":"#64748b"
+  };
+  const HASH_COLORS=["#5b6ef5","#ec4899","#0ea5e9","#14b8a6","#f97316",
+                     "#8b5cf6","#84cc16","#f43f5e","#6366f1","#d946ef"];
+  function catColor(cat){
+    if(CAT_COLOR[cat]) return CAT_COLOR[cat];
+    let h=0; const s=String(cat);
+    for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0;
+    return HASH_COLORS[h%HASH_COLORS.length];
+  }
+  function catClass(cat){ return CAT_STYLE[cat] || "c-custom"; }
+  function escapeHtml(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+  function oneLine(s){ return String(s).replace(/[\r\n]+/g," ").trim(); }
+  function uid(){ return "id"+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+  function normalizeItems(arr){
+    arr.forEach(it=>{
+      if(!it.id) it.id=uid();
+      if(it.cat==null) it.cat="未分类";
+      if(it.name==null) it.name="未命名";
+      if(it.done==null) it.done=false;
+      if(it.weight==null) it.weight=1;
+    });
+    return arr;
+  }
+
+  const DEFAULT = [
+    {id:"piano",name:"钢琴",cat:"进行中"},
+    {id:"drums",name:"架子鼓",cat:"进行中"},
+    {id:"vocal",name:"声乐（自信的声音表达）",cat:"表达主线"},
+    {id:"song",name:"写一首歌",cat:"表达主线"},
+    {id:"speech",name:"口才",cat:"表达主线"},
+    {id:"standup",name:"脱口秀",cat:"表达主线"},
+    {id:"interview",name:"结构化面试",cat:"表达主线"},
+    {id:"teach",name:"教资",cat:"表达主线"},
+    {id:"logic",name:"逻辑",cat:"内核补给"},
+    {id:"psych",name:"心理学入门",cat:"内核补给"},
+    {id:"law",name:"法律",cat:"内核补给"},
+    {id:"python",name:"Python",cat:"内核补给"},
+    {id:"calli",name:"书法",cat:"表达通道"},
+    {id:"water",name:"水彩 / 写生",cat:"表达通道"},
+    {id:"classic",name:"古典舞",cat:"表达通道"},
+    {id:"sword",name:"剑舞",cat:"表达通道"},
+    {id:"jazz",name:"爵士",cat:"表达通道"},
+    {id:"climb",name:"攀岩",cat:"体验型"},
+    {id:"archery",name:"射箭",cat:"体验型"},
+    {id:"carve",name:"雕刻",cat:"体验型"},
+    {id:"cos",name:"COS（一次）",cat:"体验型"},
+    {id:"guide",name:"导游证",cat:"素材库"},
+    {id:"eguide",name:"英语导游证",cat:"素材库"},
+    {id:"tcm",name:"中医药材入门",cat:"素材库"},
+    {id:"travel",name:"穿越",cat:"素材库"},
+    {id:"apocalypse",name:"末世",cat:"素材库"}
+  ];
+
+  const list=document.getElementById("list");
+  const groupsEl=document.getElementById("groups");
+  const legend=document.getElementById("legend");
+  const toastEl=document.getElementById("toast");
+  const savedEl=document.getElementById("saved");
+  const hintEl=document.getElementById("hint");
+  const editBtn=document.getElementById("editBtn");
+  const listSelect=document.getElementById("listSelect");
+
+  let library=loadLibrary();
+  let items=currentList().items;
+  let editMode=false;
+  let currentView="list";
+  const closedGroups=new Set();
+  const selectedIds=new Set();
+  let dragging=null, placeholder=null, offsetY=0;
+  let pressTimer=null, pressStart=null, pressItem=null, pressPointerId=null;
+  // 转盘状态
+  const wheelCanvas=document.getElementById("wheelCanvas");
+  let wheelAngle=0, wheelItems=[], spinning=false;
+  let wheelOrder=null;   // 转盘专用扇区顺序（id 数组）；null 表示沿用清单原顺序，打乱只改这个不动 items
+  const WHEEL_COLORS=["#5b6ef5","#ec4899","#10b981","#f59e0b","#7c5cf0",
+                      "#3b7ddd","#e5484d","#14b8a6","#f97316","#8b5cf6",
+                      "#0ea5e9","#84cc16","#f43f5e","#6366f1","#d946ef"];
+  // ===== 音效（Web Audio 合成，无需外部文件）=====
+  const SOUND_KEY="sorter-sound-on";
+  let soundOn=true;
+  try{ const v=localStorage.getItem(SOUND_KEY); if(v!==null) soundOn=(v==="1"); }catch(e){}
+  let audioCtx=null;
+  // 震动：跟随音效开关（soundOn），无震动能力时静默
+  function vibrate(pattern){
+    if(!soundOn) return;
+    try{ if(navigator.vibrate) navigator.vibrate(pattern); }catch(e){}
+  }
+  // 转盘选项（持久化）
+  let wheelOpts={skipDone:false,weighted:false,balance:false};
+  try{
+    const o=JSON.parse(localStorage.getItem(WHEEL_OPTS_KEY));
+    if(o&&typeof o==="object") wheelOpts={...wheelOpts,...o};
+  }catch(e){}
+  function saveWheelOpts(){
+    try{ localStorage.setItem(WHEEL_OPTS_KEY,JSON.stringify(wheelOpts)); }catch(e){}
+  }
+  // 抽取历史：[{name,cat,time,listId}]，最多 200 条；按清单隔离
+  let drawHistory=[];
+  try{
+    const h=JSON.parse(localStorage.getItem(DRAW_HISTORY_KEY));
+    if(Array.isArray(h)) drawHistory=h.map(x=>({...x,listId:x.listId||"default"})); // 旧记录归到默认清单
+  }catch(e){}
+  function saveDrawHistory(){
+    try{ localStorage.setItem(DRAW_HISTORY_KEY,JSON.stringify(drawHistory.slice(0,200))); }catch(e){}
+  }
+  // 当前清单的抽取记录（分类平衡/推荐/历史展示都只用它）
+  function currentDrawHistory(){ return drawHistory.filter(x=>x.listId===library.activeId); }
+  function getAudio(){
+    if(!audioCtx){
+      try{ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return null; }
+    }
+    if(audioCtx.state==="suspended") audioCtx.resume();
+    return audioCtx;
+  }
+  // 滴答声：短促的方波，pointer 经过每个扇区时触发
+  function playTick(){
+    if(!soundOn) return;
+    const ctx=getAudio(); if(!ctx) return;
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.type="square"; o.frequency.value=880;
+    g.gain.setValueAtTime(.0001,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(.09,ctx.currentTime+.005);
+    g.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+.06);
+    o.connect(g).connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime+.07);
+  }
+  // 中奖音：上行三音和弦
+  function playWin(){
+    if(!soundOn) return;
+    const ctx=getAudio(); if(!ctx) return;
+    const notes=[523.25,659.25,783.99,1046.5]; // C5 E5 G5 C6
+    notes.forEach((f,i)=>{
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.type="sine"; o.frequency.value=f;
+      const t=ctx.currentTime+i*.11;
+      g.gain.setValueAtTime(.0001,t);
+      g.gain.exponentialRampToValueAtTime(.18,t+.02);
+      g.gain.exponentialRampToValueAtTime(.0001,t+.55);
+      o.connect(g).connect(ctx.destination);
+      o.start(t); o.stop(t+.6);
+    });
+  }
+
+  function currentList(){
+    if(!library.lists.length) library.lists.push({id:uid(),name:"清单 1",items:[]});
+    if(!library.lists.some(l=>l.id===library.activeId)) library.activeId=library.lists[0].id;
+    return library.lists.find(l=>l.id===library.activeId);
+  }
+  function migrateOldItems(){
+    try{
+      const raw=JSON.parse(localStorage.getItem(KEY));
+      if(Array.isArray(raw)) return normalizeItems(raw);
+    }catch(e){}
+    try{
+      const ids=JSON.parse(localStorage.getItem("interest-order-v1"));
+      if(Array.isArray(ids)){
+        const map=Object.fromEntries(DEFAULT.map(d=>[d.id,d]));
+        const ordered=ids.map(id=>map[id]).filter(Boolean);
+        DEFAULT.forEach(d=>{if(!ids.includes(d.id))ordered.push(d);});
+        return normalizeItems(ordered.map(x=>({...x})));
+      }
+    }catch(e){}
+    return normalizeItems(DEFAULT.map(x=>({...x})));
+  }
+  function loadLibrary(){
+    try{
+      const raw=JSON.parse(localStorage.getItem(LIB_KEY));
+      if(raw&&Array.isArray(raw.lists)&&raw.lists.length){
+        raw.lists.forEach(l=>{
+          if(!l.id) l.id=uid();
+          if(!Array.isArray(l.items)) l.items=[];
+          if(!l.name) l.name="未命名清单";
+          normalizeItems(l.items);
+        });
+        if(!raw.lists.some(l=>l.id===raw.activeId)) raw.activeId=raw.lists[0].id;
+        return raw;
+      }
+    }catch(e){}
+    return {activeId:"default",lists:[{id:"default",name:"我的清单",items:migrateOldItems()}]};
+  }
+  function saveLibrary(){
+    currentList().items=items;
+    try{ localStorage.setItem(LIB_KEY,JSON.stringify(library)); }catch(e){}
+  }
+  function buildListSelect(){
+    listSelect.innerHTML=library.lists.map(l=>
+      '<option value="'+escapeHtml(l.id)+'"'+(l.id===library.activeId?' selected':'')+'>'+escapeHtml(l.name)+'</option>'
+    ).join("");
+  }
+  function switchList(id){
+    if(id===library.activeId) return;
+    saveLibrary();
+    library.activeId=id;
+    items=currentList().items;
+    closedGroups.clear(); selectedIds.clear();
+    wheelOrder=null;   // 切换清单时重置转盘专用顺序
+    historyStack.length=0; redoStack.length=0; syncHistoryBtns(); saveHistory();
+    saveLibrary(); buildListSelect(); render();
+    toast("已切换到「"+currentList().name+"」");
+  }
+
+  // ===== 撤销/重做 =====
+  const historyStack=[];
+  const redoStack=[];
+  const undoBtn=document.getElementById("undoBtn");
+  const redoBtn=document.getElementById("redoBtn");
+  const MAX_HISTORY=100;
+  // 历史快照：同时保存 items 与清单名，使重命名也可撤销
+  function makeSnapshot(){ return {items:JSON.parse(JSON.stringify(items)), listName:currentList().name}; }
+  function normalizeSnapshot(s){ return Array.isArray(s) ? {items:s} : (s&&Array.isArray(s.items)?s:{items:[]}); }
+  function applySnapshot(s){
+    items=s.items;
+    if(s.listName!=null) currentList().name=s.listName;
+  }
+  function pushHistory(){
+    historyStack.push(makeSnapshot());
+    if(historyStack.length>MAX_HISTORY) historyStack.shift();
+    redoStack.length=0;
+    syncHistoryBtns(); saveHistory();
+  }
+  function syncHistoryBtns(){
+    undoBtn.disabled=historyStack.length===0;
+    redoBtn.disabled=redoStack.length===0;
+  }
+  function saveHistory(){
+    try{ sessionStorage.setItem(HISTORY_KEY,JSON.stringify({listId:library.activeId,undo:historyStack,redo:redoStack})); }catch(e){}
+  }
+  function loadHistory(){
+    try{
+      const h=JSON.parse(sessionStorage.getItem(HISTORY_KEY));
+      // 只有历史所属清单与当前清单一致时才恢复，避免跨清单污染
+      if(h&&h.listId===library.activeId&&Array.isArray(h.undo)&&Array.isArray(h.redo)){
+        historyStack.push(...h.undo.map(normalizeSnapshot)); redoStack.push(...h.redo.map(normalizeSnapshot));
+      }
+    }catch(e){}
+    syncHistoryBtns();
+  }
+
+  function saveAll(){
+    saveLibrary();
+    buildCatDatalist();
+    savedEl.classList.add("show");
+    clearTimeout(saveAll._t);
+    saveAll._t=setTimeout(()=>savedEl.classList.remove("show"),1100);
+  }
+
+  // ===== 卡片 =====
+  function createItem(d,index,inGroup){
+    const el=document.createElement("div");
+    el.className="item"+(d.done?" done":"")+(selectedIds.has(d.id)?" selected":"")+(!inGroup&&index<3?" top"+(index+1):"");
+    el.dataset.id=d.id;
+    el.innerHTML=
+      '<div class="grip" title="按住一会儿再拖动">⠿</div>'+
+      '<button class="chk'+(d.done?" on":"")+'" title="标记完成">'+(d.done?"✓":"")+'</button>'+
+      '<label class="sel edit-only" title="多选"><input type="checkbox"'+(selectedIds.has(d.id)?" checked":"")+'></label>'+
+      '<div class="rank">'+(index+1)+'</div>'+
+      '<div class="name">'+escapeHtml(d.name)+'</div>'+
+      '<span class="tag '+catClass(d.cat)+'">'+escapeHtml(d.cat)+'</span>'+
+      '<div class="item-actions">'+
+        '<button class="pin-top" title="移到最前">⤒ 置顶</button>'+
+        '<button class="pin-bot" title="移到最后">⤓ 置底</button>'+
+        '<button class="weight-btn" title="设置抽取权重">⚖ 权重</button>'+
+        '<button class="del" title="删除">×</button>'+
+      '</div>'+
+      (d.weight&&d.weight>1?'<span class="weight-badge" style="position:absolute;right:10px;top:10px;">×'+d.weight+'</span>':'');
+    el.querySelector(".chk").addEventListener("click",()=>toggleDone(d));
+    const cb=el.querySelector(".sel input");
+    cb.addEventListener("change",()=>{
+      if(cb.checked) selectedIds.add(d.id); else selectedIds.delete(d.id);
+      el.classList.toggle("selected",cb.checked);
+      updateBatchBar();
+    });
+    el.querySelector(".name").addEventListener("click",()=>startEdit(el,d,"name"));
+    el.querySelector(".tag").addEventListener("click",()=>startEdit(el,d,"cat"));
+    const delBtn=el.querySelector(".del");
+    delBtn.addEventListener("click",()=>{
+      if(delBtn.dataset.confirm!=="1"){
+        delBtn.dataset.confirm="1"; delBtn.textContent="确认删除?"; delBtn.classList.add("confirm");
+        toast("再点一次确认删除「"+oneLine(d.name)+"」");
+        clearTimeout(delBtn._ct);
+        delBtn._ct=setTimeout(()=>{
+          if(delBtn.dataset.confirm==="1"){
+            delBtn.dataset.confirm="0"; delBtn.textContent="×"; delBtn.classList.remove("confirm");
+          }
+        },3000);
+        return;
+      }
+      pushHistory();
+      items=items.filter(x=>x.id!==d.id);
+      selectedIds.delete(d.id);
+      saveLibrary();
+      render(); saveAll(); toast("已删除，可点 ↶ 撤销恢复");
+    });
+    el.querySelector(".pin-top").addEventListener("click",()=>pinItem(d,true));
+    el.querySelector(".pin-bot").addEventListener("click",()=>pinItem(d,false));
+    el.querySelector(".weight-btn").addEventListener("click",()=>cycleWeight(d));
+    el.querySelector(".grip").addEventListener("pointerdown",onPressDown);
+    return el;
+  }
+
+  function toggleDone(d){
+    pushHistory();
+    d.done=!d.done;
+    render(); saveAll();
+    toast(d.done?"已标记完成 ✓":"已取消完成标记");
+  }
+
+  function pinItem(d,toTop){
+    const cur=items.findIndex(x=>x.id===d.id);
+    if(cur<0) return;
+    pushHistory();
+    if(currentView==="list" || !d.cat){
+      items.splice(cur,1);
+      if(toTop) items.unshift(d); else items.push(d);
+    }else{
+      items=items.filter(x=>x.id!==d.id);
+      if(toTop){
+        let f=items.findIndex(x=>x.cat===d.cat);
+        if(f<0) f=items.length;
+        items.splice(f,0,d);
+      }else{
+        let l=-1;
+        items.forEach((x,i)=>{ if(x.cat===d.cat) l=i; });
+        items.splice(l<0?items.length:l+1,0,d);
+      }
+    }
+    render(); saveAll();
+    toast(toTop?"已移到最前":"已移到最后");
+  }
+
+  // 权重循环：1 → 2 → 3 → 5 → 1
+  function cycleWeight(d){
+    const seq=[1,2,3,5];
+    const cur=seq.indexOf(d.weight||1);
+    d.weight=seq[(cur+1)%seq.length];
+    render(); saveAll();
+    toast(d.weight>1?("「"+oneLine(d.name)+"」权重 ×"+d.weight):("「"+oneLine(d.name)+"」权重已重置"));
+  }
+
+  function emptyStateHTML(){
+    return '<div class="empty-state"><div class="big">✎</div>'+
+      '<div class="t">这个清单还是空的</div>'+
+      '<div class="s">点「✎ 编辑模式」→「＋ 添加项目」开始<br>或点「粘贴添加」批量粘贴<br>也可点「↶ 撤销」找回刚删掉的内容</div></div>';
+  }
+
+  function renderList(){
+    list.innerHTML="";
+    if(items.length===0){ list.innerHTML=emptyStateHTML(); return; }
+    items.forEach((d,i)=>list.appendChild(createItem(d,i,false)));
+  }
+
+  function sortedCats(){
+    const order=[];
+    items.forEach(x=>{ if(!order.includes(x.cat)) order.push(x.cat); });
+    return order;
+  }
+
+  function moveGroupUp(cat){
+    const order=sortedCats();
+    const i=order.indexOf(cat);
+    if(i<=0) return;
+    pushHistory();
+    const prev=order[i-1];
+    const moving=items.filter(x=>x.cat===cat);
+    const rest=items.filter(x=>x.cat!==cat);
+    const newInsertIdx=rest.findIndex(x=>x.cat===prev);
+    rest.splice(newInsertIdx,0,...moving);
+    items=rest;
+    render(); saveAll(); toast("已把「"+cat+"」组上移");
+  }
+
+  function renderGroups(){
+    groupsEl.innerHTML="";
+    if(items.length===0){ groupsEl.innerHTML=emptyStateHTML(); return; }
+    sortedCats().forEach(cat=>{
+      const sec=document.createElement("section");
+      sec.className="group"+(closedGroups.has(cat)?" closed":"");
+      sec.dataset.cat=cat;
+      const members=items.filter(x=>x.cat===cat);
+      const gIdx=sortedCats().indexOf(cat);
+      sec.innerHTML=
+        '<div class="group-head">'+
+          '<button class="up" title="整组上移"'+(gIdx===0?' disabled':'')+'>▲</button>'+
+          '<span class="tag '+catClass(cat)+'">'+escapeHtml(cat)+'</span>'+
+          '<span class="group-count">'+members.length+' 项</span>'+
+          '<span class="group-fold">⌄</span>'+
+        '</div>';
+      const box=document.createElement("div");
+      box.className="group-items";
+      if(members.length===0){
+        const empty=document.createElement("div");
+        empty.className="group-empty";empty.textContent="（空分类，把项目拖进来）";
+        box.appendChild(empty);
+      }
+      members.forEach((d,i)=>box.appendChild(createItem(d,i,true)));
+      sec.appendChild(box);
+      sec.querySelector(".up").addEventListener("click",e=>{ e.stopPropagation(); moveGroupUp(cat); });
+      sec.querySelector(".group-head").addEventListener("click",()=>{
+        if(closedGroups.has(cat)) closedGroups.delete(cat); else closedGroups.add(cat);
+        sec.classList.toggle("closed");
+      });
+      groupsEl.appendChild(sec);
+    });
+  }
+
+  // ===== 抽取转盘 =====
+  function wheelPool(){
+    const pool=wheelOpts.skipDone ? items.filter(x=>!x.done) : items.slice();
+    if(!wheelOrder) return pool;
+    // 按转盘专用顺序排列：有记录的按序在前，新增项按原顺序追加在后
+    const pos=new Map(wheelOrder.map((id,i)=>[id,i]));
+    return pool.slice().sort((a,b)=>{
+      const ia=pos.has(a.id)?pos.get(a.id):Infinity;
+      const ib=pos.has(b.id)?pos.get(b.id):Infinity;
+      return ia-ib;  // Array.sort 稳定，未记录的项保持原相对顺序
+    });
+  }
+  // 打乱仅转盘扇区顺序，不影响清单排序
+  function shuffleWheel(){
+    const pool=wheelPool();
+    if(pool.length<2){ toast("至少两项才能打乱"); return; }
+    const ids=pool.map(x=>x.id);
+    for(let i=ids.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [ids[i],ids[j]]=[ids[j],ids[i]];
+    }
+    wheelOrder=ids;
+    wheelAngle=0;
+    wheelCanvas.style.transition="none";
+    wheelCanvas.style.transform="rotate(0rad)";
+    drawWheel();
+    toast("转盘已打乱（清单顺序不变）");
+  }
+  function buildWheelLegend(){
+    const el=document.getElementById("wheelCatLegend");
+    const cats=[...new Set(wheelItems.map(x=>x.cat))];
+    el.innerHTML=cats.map(c=>'<span><i style="background:'+catColor(c)+'"></i>'+escapeHtml(c)+'</span>').join("");
+  }
+  // 按权重 + 分类平衡选中一个扇区序号
+  function pickWinIndex(){
+    const n=wheelItems.length;
+    if(!wheelOpts.weighted && !wheelOpts.balance) return Math.floor(Math.random()*n);
+    // 分类平衡：统计最近抽取中各分类次数，次数越少权重越高（只看当前清单）
+    const recent=currentDrawHistory().slice(0, Math.max(12, n*2));
+    const catCount={};
+    recent.forEach(h=>{ catCount[h.cat]=(catCount[h.cat]||0)+1; });
+    const weights=wheelItems.map(d=>{
+      let w = wheelOpts.weighted ? Math.max(0.01, Number(d.weight)||1) : 1;
+      if(wheelOpts.balance){
+        const used=catCount[d.cat]||0;             // 该分类最近被抽中次数
+        const totalInPool=wheelItems.filter(x=>x.cat===d.cat).length;
+        const factor=1/(1+used/Math.max(1,totalInPool)); // 用得越多权重越低
+        w*= Math.max(0.15, factor);
+      }
+      return w;
+    });
+    const total=weights.reduce((a,b)=>a+b,0);
+    let r=Math.random()*total;
+    for(let i=0;i<n;i++){ r-=weights[i]; if(r<0) return i; }
+    return n-1;
+  }
+  function drawWheel(){
+    wheelItems=wheelPool();
+    const countEl=document.getElementById("wheelCount");
+    const spinBtn=document.getElementById("spinBtn");
+    if(wheelItems.length===0){
+      countEl.textContent="当前清单没有可抽取的项目"+(document.getElementById("wheelSkipDone").checked?"（已完成项被跳过）":"")+"。";
+      spinBtn.disabled=true;
+      const ctx=wheelCanvas.getContext("2d");
+      ctx.clearRect(0,0,620,620);
+      ctx.fillStyle="#eef1f8";ctx.beginPath();ctx.arc(310,310,300,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle="#9aa4ba";ctx.font="600 22px sans-serif";ctx.textAlign="center";ctx.fillText("暂无项目",310,318);
+      return;
+    }
+    spinBtn.disabled=false;
+    const weighted=wheelOpts.weighted, balanced=wheelOpts.balance;
+    countEl.textContent="共 "+wheelItems.length+" 项参与抽取"+
+      (weighted?" · 按权重抽取":"")+(balanced?" · 分类平衡":"")+(!weighted&&!balanced?" · 概率均等":"");
+    buildWheelLegend();
+    const ctx=wheelCanvas.getContext("2d");
+    const cx=310, cy=310, r=300;
+    const n=wheelItems.length;
+    const step=Math.PI*2/n;
+    ctx.clearRect(0,0,620,620);
+    wheelItems.forEach((d,i)=>{
+      const a0=-Math.PI/2+i*step;
+      const a1=a0+step;
+      ctx.beginPath();ctx.moveTo(cx,cy);
+      ctx.arc(cx,cy,r,a0,a1);ctx.closePath();
+      ctx.fillStyle=catColor(d.cat);
+      ctx.fill();
+      ctx.strokeStyle="rgba(255,255,255,.85)";ctx.lineWidth=2;ctx.stroke();
+      // 文字：沿半径方向，落在自己扇区中心；左半圈自动翻转保持正立
+      const mid=a0+step/2;
+      ctx.save();
+      ctx.translate(cx,cy);
+      ctx.rotate(mid);
+      const flip=Math.cos(mid)<0;
+      if(flip) ctx.rotate(Math.PI);
+      ctx.textAlign=flip?"left":"right";
+      ctx.textBaseline="middle";
+      let label=oneLine(d.name);
+      const maxChars=n>16?6:n>10?8:10;
+      if(label.length>maxChars) label=label.slice(0,maxChars-1)+"…";
+      ctx.font="700 "+(n>16?20:24)+"px -apple-system,'PingFang SC',sans-serif";
+      ctx.fillStyle="#fff";
+      ctx.shadowColor="rgba(0,0,0,.28)";ctx.shadowBlur=4;ctx.shadowOffsetY=1;
+      ctx.fillText(label,flip?-(r-22):(r-22),0);
+      ctx.restore();
+    });
+    // 中心装饰圆（视觉上盖住辐条交汇处）
+    ctx.beginPath();ctx.arc(cx,cy,42,0,Math.PI*2);
+    ctx.fillStyle="rgba(255,255,255,.75)";ctx.fill();
+  }
+  // 旋转中滴答声：随转盘减速自然变慢（按跨过的扇区边界触发）
+  function startTickLoop(step){
+    if(!soundOn) return;
+    getAudio(); // 用户手势中解锁音频
+    let lastRaw=null, unwrapped=0, lastBoundary=0;
+    function frame(){
+      if(!spinning) return;
+      const tr=getComputedStyle(wheelCanvas).transform;
+      if(tr && tr!=="none"){
+        const m=tr.match(/matrix\(([^)]+)\)/);
+        if(m){
+          const p=m[1].split(",").map(Number);
+          const raw=Math.atan2(p[1],p[0]);
+          if(lastRaw!==null){
+            let diff=raw-lastRaw;
+            while(diff<=-Math.PI) diff+=Math.PI*2;
+            while(diff>Math.PI) diff-=Math.PI*2;
+            unwrapped+=diff;
+          }
+          lastRaw=raw;
+          const boundary=Math.floor(unwrapped/step);
+          if(boundary!==lastBoundary){ playTick(); lastBoundary=boundary; }
+        }
+      }
+      if(spinning) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+  function spinWheel(){
+    if(spinning) return;
+    if(wheelItems.length===0){ toast("没有可抽取的项目"); return; }
+    spinning=true;
+    document.getElementById("spinBtn").disabled=true;
+    const n=wheelItems.length;
+    const step=Math.PI*2/n;
+    const winIndex=pickWinIndex();
+    // 首扇区从正上方(-PI/2)开始顺时针绘制，扇区 i 中心相对初始角 = i*step+step/2
+    // 指针固定在正上方，需让该扇区中心转到指针处：目标角 = -(i*step+step/2) (mod 2PI)
+    const target=-(winIndex*step+step/2);
+    const cur=((wheelAngle%(Math.PI*2))+Math.PI*2)%(Math.PI*2);
+    let delta=((target-cur)%(Math.PI*2)+Math.PI*2)%(Math.PI*2); // 归一到 [0,2PI)
+    const turns=5+Math.floor(Math.random()*3);
+    wheelAngle=wheelAngle+turns*Math.PI*2+delta; // 顺时针多转几圈后精确落在目标
+    wheelCanvas.style.transition="transform 4.2s cubic-bezier(.12,.7,.12,1)";
+    wheelCanvas.style.transform="rotate("+wheelAngle+"rad)";
+    startTickLoop(step);
+    const picked=wheelItems[winIndex];
+    clearTimeout(spinWheel._t);
+    spinWheel._t=setTimeout(()=>{
+      spinning=false;
+      document.getElementById("spinBtn").disabled=false;
+      playWin(); vibrate([60,40,120]);
+      // 记录抽取历史（带上当前清单 ID）
+      drawHistory.unshift({name:picked.name,cat:picked.cat,time:Date.now(),listId:library.activeId});
+      if(drawHistory.length>200) drawHistory.length=200;
+      saveDrawHistory();
+      showResult(picked);
+    },4300);
+  }
+  function showResult(d){
+    document.getElementById("resultName").textContent=d.name;
+    const cat=document.getElementById("resultCat");
+    cat.textContent=d.cat;
+    cat.className="tag result-cat "+catClass(d.cat);
+    document.getElementById("resultModal").classList.add("show");
+    spinWheel._last=d;
+  }
+
+  // ===== 抽取历史 =====
+  function openHistory(){
+    const list=document.getElementById("histList");
+    const hist=currentDrawHistory();
+    if(!hist.length){
+      list.innerHTML='<div class="group-empty" style="padding:22px 4px;">「'+escapeHtml(currentList().name)+'」还没有抽取记录，去转盘抽一次吧</div>';
+      document.getElementById("histSub").textContent="「"+escapeHtml(currentList().name)+"」的抽取记录（0）";
+    }else{
+      document.getElementById("histSub").textContent="「"+escapeHtml(currentList().name)+"」的抽取记录（"+hist.length+" 条，最多保留 200）";
+      list.innerHTML=hist.map(h=>{
+        const t=new Date(h.time);
+        const ts=(t.getMonth()+1)+"/"+t.getDate()+" "+String(t.getHours()).padStart(2,"0")+":"+String(t.getMinutes()).padStart(2,"0");
+        return '<div class="hist-row"><span class="hist-time">'+ts+'</span>'+
+               '<span class="hist-name">'+escapeHtml(oneLine(h.name))+'</span>'+
+               '<span class="tag '+catClass(h.cat)+'">'+escapeHtml(h.cat)+'</span></div>';
+      }).join("");
+    }
+    document.getElementById("historyModal").classList.add("show");
+  }
+
+  // ===== 数据统计 =====
+  function openStats(){
+    const total=items.length;
+    const done=items.filter(x=>x.done).length;
+    const pct=total?Math.round(done/total*100):0;
+    document.getElementById("progPct").textContent=pct+"%";
+    document.getElementById("progRing").style.background=
+      "conic-gradient(#10b981 "+pct+"%, #eef1f7 "+pct+"%)";
+    document.getElementById("progInfo").innerHTML=
+      "共 <b>"+total+"</b> 项 · 已完成 <b>"+done+"</b> 项<br>剩余 <b>"+(total-done)+"</b> 项待探索";
+    // 分类分布
+    const counts={};
+    items.forEach(x=>{ counts[x.cat]=(counts[x.cat]||0)+1; });
+    const cats=sortedCats();
+    const max=Math.max(1,...cats.map(c=>counts[c]||0));
+    document.getElementById("catStats").innerHTML=cats.length
+      ? cats.map(c=>{
+          const n=counts[c]||0, w=Math.round(n/max*100);
+          return '<div class="stat-bar-row"><span class="stat-bar-label">'+escapeHtml(c)+'</span>'+
+                 '<span class="stat-bar-track"><span class="stat-bar-fill" style="width:'+w+'%;background:'+catColor(c)+'"></span></span>'+
+                 '<span class="stat-bar-num">'+n+'</span></div>';
+        }).join("")
+      : '<div class="group-empty">暂无数据</div>';
+    document.getElementById("statsModal").classList.add("show");
+  }
+
+  // ===== 今天做什么（智能推荐）=====
+  function pickRecommend(){
+    const pool=items.filter(x=>!x.done);
+    if(!pool.length) return null;
+    // 分三类候选：进行中优先，其次表达主线，再其余；同类里优先未完成+最近少抽中
+    const priority={"进行中":100,"表达主线":60,"内核补给":30,"表达通道":20,"体验型":10,"素材库":5};
+    const recent=currentDrawHistory().slice(0,30);
+    const scored=pool.map(d=>{
+      const base=priority[d.cat]!=null?priority[d.cat]:15;
+      const rank=(items.indexOf(d)+1);                 // 排名越靠前分越高
+      const rankScore=Math.max(0,(items.length-rank))*2;
+      const lastUsed=recent.findIndex(h=>h.name===d.name);
+      const fresh=lastUsed<0?40:Math.max(0,40-lastUsed*4); // 越久没抽到分越高
+      const w=wheelOpts.weighted?Math.max(1,Number(d.weight)||1):1;
+      return {d, score:(base+rankScore+fresh)*w};
+    });
+    scored.sort((a,b)=>b.score-a.score);
+    // 在前 3 名里随机，避免每次都一样
+    const top=scored.slice(0,Math.min(3,scored.length));
+    return top[Math.floor(Math.random()*top.length)].d;
+  }
+  function openRecommend(){
+    const d=pickRecommend();
+    if(!d){ toast("没有可推荐的未完成项目"); return; }
+    document.getElementById("recName").textContent=d.name;
+    const cat=document.getElementById("recCat");
+    cat.textContent=d.cat; cat.className="tag "+catClass(d.cat);
+    document.getElementById("recHint").textContent="结合优先级、完成情况与抽取频率，为你挑了一项";
+    document.getElementById("recReason").innerHTML=
+      "「"+escapeHtml(oneLine(d.name))+"」属于 <b>"+escapeHtml(d.cat)+"</b> 分类"+
+      (d.done?"":"，目前尚未完成")+
+      (d.weight>1?"，且你给它设了 ×"+d.weight+" 的权重":"")+
+      "。<br>它排在你的清单第 <b>"+(items.indexOf(d)+1)+"</b> 位，适合现在着手。";
+    document.getElementById("todayModal").classList.add("show");
+  }
+
+  function pruneSelection(){
+    [...selectedIds].forEach(id=>{ if(!items.some(x=>x.id===id)) selectedIds.delete(id); });
+  }
+  function updateBatchBar(){
+    const n=selectedIds.size;
+    const bar=document.getElementById("batchbar");
+    bar.classList.toggle("show",n>0 && editMode);
+    document.getElementById("bcount").textContent="已选 "+n+" 项";
+  }
+
+  function render(){
+    if(currentView==="list") renderList();
+    else if(currentView==="group") renderGroups();
+    else drawWheel();
+    buildLegend(); refreshRank(); updateHint(); buildListSelect();
+    pruneSelection(); updateBatchBar();
+  }
+
+  function buildCatDatalist(){
+    const dl=document.getElementById("catPresets");
+    const used=[...new Set(items.map(x=>x.cat))];
+    let saved=[];
+    try{ const a=JSON.parse(localStorage.getItem(CATS_HISTORY_KEY)); if(Array.isArray(a)) saved=a; }catch(e){}
+    const all=[...new Set([...PRESET_CATS,...saved,...used])];
+    dl.innerHTML=all.map(c=>'<option value="'+escapeHtml(c)+'"></option>').join("");
+    try{ localStorage.setItem(CATS_HISTORY_KEY,JSON.stringify(all)); }catch(e){}
+  }
+
+  function buildLegend(){
+    legend.innerHTML="";
+    sortedCats().forEach(cat=>{
+      const s=document.createElement("span");
+      s.innerHTML='<span class="tag '+catClass(cat)+'">'+escapeHtml(cat)+'</span>';
+      legend.appendChild(s);
+    });
+  }
+
+  function refreshRank(){
+    const containers=currentView==="list" ? [list] : [...groupsEl.querySelectorAll(".group-items")];
+    containers.forEach(c=>{
+      [...c.querySelectorAll(".item")].forEach((el,i)=>{
+        el.querySelector(".rank").textContent=i+1;
+        if(currentView==="list"){
+          el.classList.remove("top1","top2","top3");
+          if(i<3) el.classList.add("top"+(i+1));
+        }
+      });
+    });
+  }
+
+  function updateHint(){
+    if(editMode){
+      hintEl.innerHTML='编辑中：点<b>名称/分类</b>修改 · <b>✓</b>完成 · 下方按钮置顶/置底/权重';
+    }else if(currentView==="list"){
+      hintEl.innerHTML='顺序页：<b>按住 ⠿ 稍等再拖动</b> · 其他地方正常滑页 · 点 <b>✓</b> 完成';
+    }else if(currentView==="group"){
+      hintEl.innerHTML='分类页：点 <b>▲</b> 整组上移 · <b>按住 ⠿ 稍等</b>再拖动组内/跨组归类';
+    }else{
+      hintEl.innerHTML='转盘页：点 <b>开始抽奖</b> 或「抽」字 · 可开 <b>权重/分类平衡</b>';
+    }
+  }
+
+  function startEdit(el,item,field){
+    if(!editMode) return;
+    const target=el.querySelector(field==="name"?".name":".tag");
+    const old=item[field];
+    const input=document.createElement("input");
+    input.className="edit-input"+(field==="cat"?" cat-input":"");
+    input.value=old;
+    if(field==="cat") input.setAttribute("list","catPresets");
+    target.replaceWith(input);
+    input.focus(); input.select();
+    let done=false;
+    function finish(save){
+      if(done) return; done=true;
+      const val=save?input.value.trim():old;
+      const finalVal=val||old;
+      if(finalVal!==old) pushHistory();
+      item[field]=finalVal;
+      const node=document.createElement(field==="name"?"div":"span");
+      node.className=field==="name"?"name":("tag "+catClass(item.cat));
+      node.textContent=item[field];
+      node.addEventListener("click",()=>startEdit(el,item,field));
+      input.replaceWith(node);
+      saveAll();
+      if(field==="cat"){ buildLegend(); if(currentView==="group") render(); }
+    }
+    input.addEventListener("blur",()=>finish(true));
+    input.addEventListener("keydown",e=>{
+      if(e.key==="Enter"){e.preventDefault();input.blur();}
+      else if(e.key==="Escape"){e.preventDefault();finish(false);}
+    });
+  }
+
+  // ===== 长按激活拖动 =====
+  function onPressDown(e){
+    if(e.button!==undefined && e.button!==0) return;
+    const grip=e.currentTarget;
+    const item=grip.closest(".item");
+    const rect=item.getBoundingClientRect();
+    pressItem=item; pressPointerId=e.pointerId;
+    pressStart={x:e.clientX,y:e.clientY,top:rect.top,left:rect.left,width:rect.width,height:rect.height};
+    item.classList.add("pressing");
+    pressTimer=setTimeout(startDragFromPress,300);
+    document.addEventListener("pointermove",onPressMove);
+    document.addEventListener("pointerup",onPressUp);
+    document.addEventListener("pointercancel",onPressUp);
+  }
+  function onPressMove(e){
+    if(!pressStart) return;
+    if(Math.abs(e.clientX-pressStart.x)>10 || Math.abs(e.clientY-pressStart.y)>10) cancelPress();
+  }
+  function onPressUp(){ cancelPress(); }
+  function cancelPress(){
+    clearTimeout(pressTimer); pressTimer=null; pressStart=null;
+    if(pressItem) pressItem.classList.remove("pressing");
+    pressItem=null; pressPointerId=null;
+    document.removeEventListener("pointermove",onPressMove);
+    document.removeEventListener("pointerup",onPressUp);
+    document.removeEventListener("pointercancel",onPressUp);
+  }
+  function startDragFromPress(){
+    if(!pressItem||!pressStart) return;
+    const item=pressItem, p=pressStart, pid=pressPointerId;
+    clearTimeout(pressTimer); pressTimer=null;
+    item.classList.remove("pressing");
+    document.removeEventListener("pointermove",onPressMove);
+    document.removeEventListener("pointerup",onPressUp);
+    document.removeEventListener("pointercancel",onPressUp);
+    pressItem=null; pressStart=null; pressPointerId=null;
+
+    offsetY=p.y-p.top;
+    placeholder=document.createElement("div");
+    placeholder.className="placeholder";
+    placeholder.style.height=p.height+"px";
+    item.parentElement.insertBefore(placeholder,item);
+    dragging=item;
+    item.classList.add("dragging");
+    item.style.width=p.width+"px";
+    item.style.position="fixed";
+    item.style.left=p.left+"px";
+    item.style.top=p.top+"px";
+    item.style.margin="0";
+    item.style.zIndex="1000";
+    try{ item.setPointerCapture(pid); }catch(err){}
+    document.addEventListener("pointermove",onMove);
+    document.addEventListener("pointerup",onUp);
+    document.addEventListener("pointercancel",onUp);
+  }
+  function onMove(e){
+    if(!dragging) return;
+    e.preventDefault();
+    dragging.style.top=(e.clientY-offsetY)+"px";
+    const after=getAfter(e.clientY);
+    if(after==null){
+      const zones=currentView==="list"?[list]:[...groupsEl.querySelectorAll(".group:not(.closed) .group-items")];
+      const target=nearestZone(e.clientY,zones)||zones[0];
+      if(target) target.appendChild(placeholder);
+    }else{
+      after.parentElement.insertBefore(placeholder,after);
+    }
+  }
+  function getAfter(y){
+    const containers=currentView==="list"
+      ? [list]
+      : [...groupsEl.querySelectorAll(".group:not(.closed) .group-items")];
+    const els=[];
+    containers.forEach(c=>els.push(...c.querySelectorAll('.item:not(.dragging)')));
+    return els.reduce((closest,child)=>{
+      const box=child.getBoundingClientRect();
+      const off=y-box.top-box.height/2;
+      if(off<0 && off>closest.off) return {off,element:child};
+      return closest;
+    },{off:Number.NEGATIVE_INFINITY,element:null}).element;
+  }
+  function nearestZone(y,zones){
+    let best=null,bd=Infinity;
+    zones.forEach(z=>{
+      const r=z.getBoundingClientRect();
+      const d=Math.abs(y-(r.top+r.height/2));
+      if(d<bd){bd=d;best=z;}
+    });
+    return best;
+  }
+  function onUp(){
+    if(!dragging) return;
+    document.removeEventListener("pointermove",onMove);
+    document.removeEventListener("pointerup",onUp);
+    document.removeEventListener("pointercancel",onUp);
+    const parent=placeholder.parentElement;
+    parent.insertBefore(dragging,placeholder);
+    placeholder.remove();
+    ["position","top","left","width","margin","zIndex"].forEach(p=>dragging.style[p]="");
+    dragging.classList.remove("dragging");
+    dragging=null; placeholder=null;
+
+    const beforeIds=items.map(x=>x.id).join("|");
+    const beforeCats=items.map(x=>x.cat).join("|");
+    pushHistory();
+
+    if(currentView==="list"){
+      const ids=[...list.querySelectorAll(".item")].map(el=>el.dataset.id);
+      const map=Object.fromEntries(items.map(x=>[x.id,x]));
+      items=ids.map(id=>map[id]).filter(Boolean);
+    }else{
+      const newItems=[];
+      [...groupsEl.querySelectorAll(".group")].forEach(g=>{
+        const cat=g.dataset.cat;
+        [...g.querySelectorAll(".item")].forEach(el=>{
+          const d=items.find(x=>x.id===el.dataset.id);
+          if(d){ d.cat=cat; newItems.push(d); }
+        });
+      });
+      items=newItems;
+    }
+    const afterIds=items.map(x=>x.id).join("|");
+    const afterCats=items.map(x=>x.cat).join("|");
+    if(afterIds===beforeIds && afterCats===beforeCats){
+      historyStack.pop(); syncHistoryBtns(); saveHistory();
+    }
+    saveLibrary();
+    render(); saveAll();
+  }
+
+  function snapshotAll(){ return items.map((d,i)=>(i+1)+". "+oneLine(d.name)+(d.done?" ✓":"")+"　["+oneLine(d.cat)+"]"); }
+  function snapshotOrder(){ return items.map((d,i)=>(i+1)+". "+oneLine(d.name)+(d.done?" ✓":"")); }
+  function toast(msg){
+    toastEl.textContent=msg; toastEl.classList.add("show");
+    clearTimeout(toast._t); toast._t=setTimeout(()=>toastEl.classList.remove("show"),2000);
+  }
+
+  // ===== 通用确认弹窗 / 输入弹窗（替代系统 confirm / prompt）=====
+  let confirmAction=null, confirmClose=null;
+  function showConfirm({title="确认",sub="",okText="确定",danger=false},onYes,onClose){
+    document.getElementById("confirmTitle").textContent=title;
+    document.getElementById("confirmSub").innerHTML=sub;
+    const ok=document.getElementById("confirmOkBtn");
+    ok.textContent=okText;
+    ok.className=danger?"":"go";
+    if(danger) ok.style.cssText="background:#e5484d;color:#fff;border-color:transparent;";
+    else ok.style.cssText="";
+    confirmAction=onYes; confirmClose=onClose||null;
+    document.getElementById("confirmModal").classList.add("show");
+  }
+  document.getElementById("confirmCancelBtn").addEventListener("click",()=>{
+    document.getElementById("confirmModal").classList.remove("show");
+    confirmAction=null;
+    if(confirmClose){ const f=confirmClose; confirmClose=null; f(); }
+  });
+  document.getElementById("confirmOkBtn").addEventListener("click",()=>{
+    document.getElementById("confirmModal").classList.remove("show");
+    const f=confirmAction; confirmAction=null; confirmClose=null;
+    if(f) f();
+  });
+
+  let promptSubmit=null, promptClose=null;
+  function showPrompt({title="输入",sub="",value="",placeholder=""},onSubmit,onClose){
+    document.getElementById("promptTitle").textContent=title;
+    document.getElementById("promptSub").innerHTML=sub;
+    const input=document.getElementById("promptInput");
+    input.value=value; input.placeholder=placeholder;
+    promptSubmit=onSubmit; promptClose=onClose||null;
+    document.getElementById("promptModal").classList.add("show");
+    setTimeout(()=>{ input.focus(); input.select(); },50);
+  }
+  function closePrompt(cancelled){
+    document.getElementById("promptModal").classList.remove("show");
+    promptSubmit=null;
+    const f=promptClose; promptClose=null;
+    if(cancelled && f) f();
+  }
+  document.getElementById("promptCancelBtn").addEventListener("click",()=>closePrompt(true));
+  document.getElementById("promptOkBtn").addEventListener("click",()=>{
+    const input=document.getElementById("promptInput");
+    const f=promptSubmit;
+    if(f) f(input.value);
+    closePrompt(false);
+  });
+  document.getElementById("promptInput").addEventListener("keydown",e=>{
+    if(e.key==="Enter"){ e.preventDefault(); document.getElementById("promptOkBtn").click(); }
+  });
+  async function copyText(txt,msg){
+    try{ await navigator.clipboard.writeText(txt); toast(msg); }
+    catch(e){
+      const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);
+      ta.select();try{document.execCommand("copy");toast(msg);}catch(err){toast("复制失败");}
+      ta.remove();
+    }
+  }
+
+  // ===== 批量操作 =====
+  document.getElementById("batchClearBtn").addEventListener("click",()=>{
+    selectedIds.clear(); render(); toast("已取消勾选");
+  });
+  document.getElementById("batchDelBtn").addEventListener("click",()=>{
+    const n=selectedIds.size;
+    if(!n) return;
+    showConfirm({
+      title:"批量删除",
+      sub:"确定删除选中的 <b>"+n+"</b> 项？<br>删除后可用 ↶ 撤销恢复。",
+      okText:"确认删除",danger:true
+    },()=>{
+      pushHistory();
+      items=items.filter(x=>!selectedIds.has(x.id));
+      selectedIds.clear();
+      saveLibrary(); render(); saveAll(); toast("已删除 "+n+" 项");
+    });
+  });
+  document.getElementById("batchCatBtn").addEventListener("click",()=>{
+    const n=selectedIds.size;
+    if(!n) return;
+    document.getElementById("catModalCount").textContent=n;
+    document.getElementById("batchCatInput").value="";
+    document.getElementById("catModal").classList.add("show");
+    setTimeout(()=>document.getElementById("batchCatInput").focus(),50);
+  });
+  document.getElementById("batchCatCancel").addEventListener("click",()=>document.getElementById("catModal").classList.remove("show"));
+  document.getElementById("batchCatConfirm").addEventListener("click",()=>{
+    const cat=document.getElementById("batchCatInput").value.trim();
+    if(!cat){ toast("请输入分类名"); return; }
+    const n=selectedIds.size;
+    pushHistory();
+    items.forEach(x=>{ if(selectedIds.has(x.id)) x.cat=cat; });
+    document.getElementById("catModal").classList.remove("show");
+    selectedIds.clear();
+    saveLibrary(); render(); saveAll();
+    toast("已把 "+n+" 项改为「"+cat+"」");
+  });
+
+  // ===== 排序辅助 =====
+  document.getElementById("sortNameBtn").addEventListener("click",()=>{
+    if(items.length<2){ toast("无需排序"); return; }
+    pushHistory();
+    items.sort((a,b)=>a.name.localeCompare(b.name,"zh-CN",{numeric:true}));
+    saveLibrary(); render(); saveAll(); toast("已按名称排序");
+  });
+  document.getElementById("sortCatBtn").addEventListener("click",()=>{
+    if(items.length<2){ toast("无需排序"); return; }
+    pushHistory();
+    const order=[...new Set([...PRESET_CATS,...items.map(x=>x.cat)])];
+    const withIdx=items.map((x,i)=>({x,i}));
+    withIdx.sort((a,b)=>(order.indexOf(a.x.cat)-order.indexOf(b.x.cat))||(a.i-b.i));
+    items=withIdx.map(o=>o.x);
+    saveLibrary(); render(); saveAll(); toast("已按分类排序");
+  });
+  document.getElementById("shuffleBtn").addEventListener("click",shuffleWheel);
+
+  // ===== 文本导入 =====
+  function parseImportText(txt){
+    const out=[];
+    txt.split(/\r?\n/).forEach(line=>{
+      let s=line.trim();
+      if(!s) return;
+      s=s.replace(/^\s*\d+[.、．)）:：]\s*/,"").replace(/^\s+\d+\s+/,"");
+      if(!s) return;
+      let cat="未分类";
+      const m=s.match(/[\[【]([^\]】]+)[\]】]\s*$/);
+      if(m){ cat=m[1].trim(); s=s.slice(0,m.index).trim(); }
+      if(!s) return;
+      out.push({id:uid(),name:s,cat:cat||"未分类",done:false});
+    });
+    return out;
+  }
+  function doTextImport(replace){
+    const txt=document.getElementById("importText").value;
+    const parsed=parseImportText(txt);
+    if(!parsed.length){ toast("没解析出有效内容，请检查格式"); return; }
+    document.getElementById("importModal").classList.remove("show");
+    pushHistory();
+    items = replace ? parsed : items.concat(parsed);
+    selectedIds.clear();
+    saveLibrary(); render(); saveAll();
+    toast("已"+(replace?"替换":"追加")+" "+parsed.length+" 项到「"+currentList().name+"」");
+  }
+
+  // ===== 事件绑定 =====
+  document.querySelectorAll(".tab").forEach(tab=>{
+    tab.addEventListener("click",()=>{
+      currentView=tab.dataset.view;
+      document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t===tab));
+      document.getElementById("view-list").style.display=currentView==="list"?"":"none";
+      document.getElementById("view-group").style.display=currentView==="group"?"":"none";
+      document.getElementById("view-wheel").style.display=currentView==="wheel"?"":"none";
+      render();
+    });
+  });
+
+  editBtn.addEventListener("click",()=>{
+    editMode=!editMode;
+    document.body.classList.toggle("editing",editMode);
+    editBtn.textContent=editMode?"✓ 完成编辑":"✎ 编辑模式";
+    editBtn.classList.toggle("mode-on",editMode);
+    if(!editMode) selectedIds.clear();
+    closeMore();
+    render();
+  });
+
+  // ===== 更多菜单开关 =====
+  const moreBtn=document.getElementById("moreBtn");
+  const morePanel=document.getElementById("morePanel");
+  const moreMask=document.getElementById("moreMask");
+  function closeMore(){
+    morePanel.classList.remove("show");
+    moreMask.classList.remove("show");
+    moreBtn.classList.remove("open");
+  }
+  moreBtn.addEventListener("click",e=>{
+    e.stopPropagation();
+    const open=!morePanel.classList.contains("show");
+    morePanel.classList.toggle("show",open);
+    moreMask.classList.toggle("show",open);
+    moreBtn.classList.toggle("open",open);
+  });
+  // 点遮罩关闭
+  moreMask.addEventListener("click",closeMore);
+  // 点菜单项后关闭面板
+  morePanel.addEventListener("click",e=>{
+    if(e.target.closest("button")) closeMore();
+  });
+
+  document.getElementById("addBtn").addEventListener("click",()=>{
+    pushHistory();
+    const it={id:uid(),name:"新项目",cat:"未分类",done:false};
+    items.push(it);
+    saveLibrary(); render(); saveAll();
+    const scope=currentView==="list"?list:groupsEl;
+    const el=[...scope.querySelectorAll(".item")].find(x=>x.dataset.id===it.id);
+    if(el) startEdit(el,it,"name");
+    toast("已添加，输入名称后回车");
+  });
+
+  listSelect.addEventListener("change",e=>switchList(e.target.value));
+
+  document.getElementById("newListBtn").addEventListener("click",()=>{
+    saveLibrary();
+    const l={id:uid(),name:"清单 "+(library.lists.length+1),items:[]};
+    library.lists.push(l);
+    library.activeId=l.id;
+    items=l.items;
+    closedGroups.clear(); selectedIds.clear();
+    wheelOrder=null;   // 新建清单时重置转盘专用顺序
+    historyStack.length=0; redoStack.length=0; syncHistoryBtns(); saveHistory();
+    saveLibrary(); render();
+    toast("已新建「"+l.name+"」");
+  });
+
+  document.getElementById("renameListBtn").addEventListener("click",()=>{
+    const cur=currentList();
+    showPrompt({
+      title:"重命名清单",
+      sub:"为当前清单取一个新名字：",
+      value:cur.name,placeholder:"清单名称"
+    },(val)=>{
+      const name=(val||"").trim();
+      if(name && name!==cur.name){
+        pushHistory();
+        cur.name=name;
+        saveLibrary(); render(); saveAll(); toast("已重命名（可撤销）");
+      }
+    });
+  });
+
+  document.getElementById("delListBtn").addEventListener("click",()=>{
+    if(library.lists.length<=1){ toast("至少保留一个清单"); return; }
+    const btn=document.getElementById("delListBtn");
+    if(btn.dataset.confirm!=="1"){
+      btn.dataset.confirm="1"; btn.textContent="?"; btn.style.background="#ffe0de";
+      toast("再点一次 × 确认删除当前清单「"+currentList().name+"」");
+      clearTimeout(btn._ct);
+      btn._ct=setTimeout(()=>{ btn.dataset.confirm="0"; btn.textContent="×"; btn.style.background=""; },3000);
+      return;
+    }
+    btn.dataset.confirm="0"; btn.textContent="×"; btn.style.background="";
+    const idx=library.lists.findIndex(l=>l.id===library.activeId);
+    library.lists.splice(idx,1);
+    library.activeId=library.lists[Math.max(0,idx-1)].id;
+    items=currentList().items;
+    closedGroups.clear(); selectedIds.clear();
+    wheelOrder=null;   // 删除清单切换时重置转盘专用顺序
+    historyStack.length=0; redoStack.length=0; syncHistoryBtns(); saveHistory();
+    saveLibrary(); render();
+    toast("已删除清单");
+  });
+
+  document.getElementById("importTextBtn").addEventListener("click",()=>{
+    document.getElementById("importText").value="";
+    document.getElementById("importModal").classList.add("show");
+    setTimeout(()=>document.getElementById("importText").focus(),50);
+  });
+  document.getElementById("importCancelBtn").addEventListener("click",()=>document.getElementById("importModal").classList.remove("show"));
+  document.getElementById("importAppendBtn").addEventListener("click",()=>doTextImport(false));
+  document.getElementById("importReplaceBtn").addEventListener("click",()=>doTextImport(true));
+
+  document.getElementById("copyAllBtn").addEventListener("click",()=>{
+    copyText("我的排序器 · "+currentList().name+"（含类型）\n\n"+snapshotAll().join("\n"),"全部清单已复制 ✓");
+  });
+  document.getElementById("copyOrderBtn").addEventListener("click",()=>{
+    copyText(snapshotOrder().join("\n"),"顺序清单已复制 ✓");
+  });
+
+  document.getElementById("clearBtn").addEventListener("click",()=>{
+    document.getElementById("clearListName").textContent=currentList().name;
+    document.getElementById("clearModal").classList.add("show");
+  });
+  document.getElementById("clearCancelBtn").addEventListener("click",()=>document.getElementById("clearModal").classList.remove("show"));
+  document.getElementById("clearConfirmBtn").addEventListener("click",()=>{
+    pushHistory();
+    items=[];
+    currentList().items=items;
+    closedGroups.clear(); selectedIds.clear();
+    wheelOrder=null;
+    document.getElementById("clearModal").classList.remove("show");
+    saveLibrary(); render(); saveAll();
+    toast("已清空「"+currentList().name+"」（可撤销）");
+  });
+
+  undoBtn.addEventListener("click",()=>{
+    if(historyStack.length===0){ toast("没有可撤销的操作"); return; }
+    redoStack.push(makeSnapshot());
+    if(redoStack.length>MAX_HISTORY) redoStack.shift();
+    applySnapshot(historyStack.pop());
+    saveLibrary(); buildListSelect(); render(); saveAll(); syncHistoryBtns(); saveHistory();
+    toast("已撤销上一步");
+  });
+  redoBtn.addEventListener("click",()=>{
+    if(redoStack.length===0){ toast("没有可重做的操作"); return; }
+    historyStack.push(makeSnapshot());
+    if(historyStack.length>MAX_HISTORY) historyStack.shift();
+    applySnapshot(redoStack.pop());
+    saveLibrary(); buildListSelect(); render(); saveAll(); syncHistoryBtns(); saveHistory();
+    toast("已重做一步");
+  });
+
+  // ===== 转盘事件 =====
+  function syncSoundIcon(){
+    document.getElementById("soundIcon").textContent=soundOn?"🔊":"🔇";
+    document.getElementById("soundToggle").classList.toggle("off",!soundOn);
+  }
+  document.getElementById("soundToggle").addEventListener("click",()=>{
+    soundOn=!soundOn;
+    try{ localStorage.setItem(SOUND_KEY,soundOn?"1":"0"); }catch(e){}
+    syncSoundIcon();
+    if(soundOn){ playTick(); vibrate(30); } // 开时给一声+一震反馈
+    toast(soundOn?"音效与震动已开启":"音效与震动已关闭");
+  });
+  syncSoundIcon();
+
+  document.getElementById("spinBtn").addEventListener("click",spinWheel);
+  document.getElementById("wheelCenter").addEventListener("click",spinWheel);
+  // 转盘选项：勾选后存起来并重绘
+  [["wheelSkipDone","skipDone"],
+   ["wheelWeighted","weighted"],["wheelBalance","balance"]].forEach(([id,key])=>{
+    const el=document.getElementById(id);
+    el.checked=!!wheelOpts[key];
+    el.addEventListener("change",()=>{
+      wheelOpts[key]=el.checked; saveWheelOpts(); drawWheel();
+    });
+  });
+  document.getElementById("wheelHistoryBtn").addEventListener("click",openHistory);
+  document.getElementById("histCloseBtn").addEventListener("click",()=>document.getElementById("historyModal").classList.remove("show"));
+  document.getElementById("histClearBtn").addEventListener("click",()=>{
+    if(!currentDrawHistory().length){ toast("当前清单还没有抽取记录"); return; }
+    showConfirm({
+      title:"清空抽奖记录",
+      sub:"确定清空「"+escapeHtml(currentList().name)+"」的抽奖记录？<br>其他清单不受影响。",
+      okText:"确认清空",danger:true
+    },()=>{
+      drawHistory=drawHistory.filter(x=>x.listId!==library.activeId);
+      saveDrawHistory(); openHistory(); toast("已清空当前清单的抽奖记录");
+    });
+  });
+  // 统计
+  document.getElementById("statsBtn").addEventListener("click",openStats);
+  document.getElementById("statsCloseBtn").addEventListener("click",()=>document.getElementById("statsModal").classList.remove("show"));
+  // 今天做什么
+  document.getElementById("todayBtn").addEventListener("click",openRecommend);
+  document.getElementById("recCloseBtn").addEventListener("click",()=>document.getElementById("todayModal").classList.remove("show"));
+  document.getElementById("recAgainBtn").addEventListener("click",openRecommend);
+  document.getElementById("resultCloseBtn").addEventListener("click",()=>document.getElementById("resultModal").classList.remove("show"));
+  document.getElementById("resultAgainBtn").addEventListener("click",()=>{
+    document.getElementById("resultModal").classList.remove("show");
+    drawWheel(); spinWheel();
+  });
+
+  loadHistory();
+  buildCatDatalist();
+  buildListSelect();
+  render();
+</script>
+</body>
+</html>
